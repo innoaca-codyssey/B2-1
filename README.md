@@ -48,3 +48,34 @@ OK
 ```
 
 날짜를 수정하면 파일 안에서도 최신순 위치를 다시 잡습니다. 교체 실패와 잘못된 CSV 입력에서는 원본 파일을 유지합니다. 명령별 도움말과 오류 종료 코드도 검사했습니다.
+
+## 거래 검색과 월별 요약
+
+```bash
+$ printf '2026-09-01\nincome\nsalary\n3000000\n월급\nmonthly\n' | python3 -m budget_app --data-dir ../lab/demo-data add
+날짜(YYYY-MM-DD): 타입(income/expense): 카테고리: 금액(양수): 메모(선택): 태그(쉼표로 구분): [저장 완료] id=TX-0072ea482b5a
+
+$ printf '2026-09-20\nexpense\nfood\n15000\n점심\nmeal\n' | python3 -m budget_app --data-dir ../lab/demo-data add
+날짜(YYYY-MM-DD): 타입(income/expense): 카테고리: 금액(양수): 메모(선택): 태그(쉼표로 구분): [저장 완료] id=TX-4c6e6f283154
+
+$ python3 -m budget_app --data-dir ../lab/demo-data list --limit 3
+TX-4c6e6f283154 | 2026-09-20 | expense | food | 15000 | 점심 | meal
+TX-0072ea482b5a | 2026-09-01 | income | salary | 3000000 | 월급 | monthly
+
+$ python3 -m budget_app --data-dir ../lab/demo-data search --from 2026-09-01 --to 2026-09-30 --category food --type expense --q 점심 --tag meal
+TX-4c6e6f283154 | 2026-09-20 | expense | food | 15000 | 점심 | meal
+
+$ python3 -m budget_app --data-dir ../lab/demo-data budget set --month 2026-09 --amount 10000
+[저장 완료] 2026-09 예산 10000원
+
+$ python3 -m budget_app --data-dir ../lab/demo-data summary --month 2026-09 --top 3
+총 수입: 3000000원
+총 지출: 15000원
+잔액: 2985000원
+예산: 10000원 (사용률 150.0%)
+[경고] 예산 초과
+food: 15000원
+
+```
+
+목록과 검색은 날짜 내림차순으로 저장된 JSONL을 한 행씩 읽습니다. 조회 제한이 있으면 필요한 행에서 읽기를 멈춥니다. 예산은 거래 파일과 분리되어 다음 실행에서도 유지됩니다.
