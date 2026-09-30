@@ -27,3 +27,24 @@ Python 3.14.7
 ```
 
 macOS arm64에서 실행했습니다. 외부 패키지는 설치하지 않습니다.
+
+## 거래 저장과 오류 처리
+
+```bash
+$ python3 -m unittest discover -s tests -v
+test_all_help_commands (test_budget.BudgetTests.test_all_help_commands) ... ok
+test_bad_import_rolls_back_all_rows (test_budget.BudgetTests.test_bad_import_rolls_back_all_rows) ... ok
+test_csv_roundtrip_and_empty_month (test_budget.BudgetTests.test_csv_roundtrip_and_empty_month) ... ok
+test_failed_replace_preserves_original_and_removes_temp (test_budget.BudgetTests.test_failed_replace_preserves_original_and_removes_temp) ... ok
+test_invalid_cli_and_corrupt_file_have_nonzero_exit (test_budget.BudgetTests.test_invalid_cli_and_corrupt_file_have_nonzero_exit) ... ok
+test_invalid_inputs (test_budget.BudgetTests.test_invalid_inputs) ... ok
+test_latest_order_after_date_edit_and_delete (test_budget.BudgetTests.test_latest_order_after_date_edit_and_delete) ... ok
+test_reopen_budget_search_and_category_use (test_budget.BudgetTests.test_reopen_budget_search_and_category_use) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.871s
+
+OK
+```
+
+날짜를 수정하면 파일 안에서도 최신순 위치를 다시 잡습니다. 교체 실패와 잘못된 CSV 입력에서는 원본 파일을 유지합니다. 명령별 도움말과 오류 종료 코드도 검사했습니다.
