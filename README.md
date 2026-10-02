@@ -196,3 +196,36 @@ OK
 ```
 
 백업의 네 저장 파일이 원본과 같은지, 같은 달 재생성의 중복 방지, 윤년/말일 처리와 전체 생성 실패 시 원본 보존을 검사했습니다. 테이블은 한글 폭과 줄바꿈을 고려하고 거래를 순회하면서 출력합니다.
+
+## 반복 내역 생성과 백업
+
+```bash
+$ printf 'income\nsalary\n3000000\n월급\nmonthly\n25\n' | python3 -m budget_app --data-dir ../lab/bonus-data recurring add
+타입(income/expense): 카테고리: 금액(양수): 메모(선택): 태그(쉼표로 구분): 매월 날짜(1~31): [저장 완료] id=RULE-02121f7aa752
+
+$ printf 'expense\nrent\n500000\n월세\nmonthly\n31\n' | python3 -m budget_app --data-dir ../lab/bonus-data recurring add
+타입(income/expense): 카테고리: 금액(양수): 메모(선택): 태그(쉼표로 구분): 매월 날짜(1~31): [저장 완료] id=RULE-edbe0b3fa74f
+
+$ python3 -m budget_app --data-dir ../lab/bonus-data recurring list
+RULE-02121f7aa752 | 매월 25일 | income | salary | 3000000
+RULE-edbe0b3fa74f | 매월 31일 | expense | rent | 500000
+
+$ python3 -m budget_app --data-dir ../lab/bonus-data recurring generate --month 2026-10
+[완료] 2026-10 generated=2
+
+$ python3 -m budget_app --data-dir ../lab/bonus-data recurring generate --month 2026-10
+[완료] 2026-10 generated=0
+
+$ python3 -m budget_app --data-dir ../lab/bonus-data list
+ID                         | DATE       | TYPE    | CATEGORY     | AMOUNT       | MEMO                     | TAGS              
+-------------------------------------------------------------------------------------------------------------------------------
+TX-R-edbe0b3fa74f-202610   | 2026-10-31 | expense | rent         |       500000 | 월세                     | monthly           
+TX-R-02121f7aa752-202610   | 2026-10-25 | income  | salary       |      3000000 | 월급                     | monthly           
+
+$ python3 -m budget_app --data-dir ../lab/bonus-data backup --out-dir ../lab/backups
+[백업 완료] ../lab/backups/budget-20261002-214237-060734-f8fcc2.zip
+
+archive members: transactions.jsonl, categories.jsonl, budgets.jsonl, recurring.jsonl
+```
+
+규칙은 recurring.jsonl에 저장합니다. 날짜가 없는 달은 말일로 조정하며 규칙 id와 월로 만든 거래 id로 중복을 막습니다. 생성은 모든 규칙을 검증한 뒤 거래 파일을 한 번 교체합니다. backup은 잠금 안에서 네 파일을 ZIP으로 묶고 파일명에 실행 시각을 넣습니다.
