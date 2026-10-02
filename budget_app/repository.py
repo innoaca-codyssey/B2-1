@@ -49,7 +49,7 @@ class Store:
                 os.unlink(temporary)
 
     def initialize(self) -> None:
-        defaults = [('transactions', []), ('categories', [{'name': n} for n in ['food', 'transport', 'rent', 'salary', 'etc']]), ('budgets', [])]
+        defaults = [('transactions', []), ('categories', [{'name': n} for n in ['food', 'transport', 'rent', 'salary', 'etc']]), ('budgets', []), ('recurring', [])]
         for name, rows in defaults:
             if not (self.directory / (name + '.jsonl')).exists():
                 self.replace(name, rows)

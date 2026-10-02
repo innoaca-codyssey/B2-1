@@ -1,8 +1,13 @@
 import csv
+import calendar
 from dataclasses import replace
+from datetime import datetime
+import os
 from pathlib import Path
+import tempfile
 from typing import Iterator
 from uuid import uuid4
+import zipfile
 from .models import Transaction, positive, valid_date, valid_month
 from .repository import Store, TransactionRepository
 
@@ -33,6 +38,8 @@ class BudgetService:
                 raise ValueError('없는 카테고리: ' + name)
             if any(t.category == name for t in self.transactions.stream()):
                 raise ValueError('사용 중인 카테고리는 삭제할 수 없습니다')
+            if any(r['category'] == name for r in self.store.rows('recurring')):
+                raise ValueError('반복 규칙에서 사용하는 카테고리는 삭제할 수 없습니다')
             names.remove(name)
         self.store.replace('categories', ({'name': n} for n in names))
 
@@ -150,3 +157,59 @@ class BudgetService:
                 writer.writerow(row)
                 count += 1
         return count
+
+    def backup(self, directory: Path) -> Path:
+        """잠금 안에서 저장 파일을 동일 시점의 ZIP으로 보존합니다."""
+        directory.mkdir(parents=True, exist_ok=True)
+        name = 'budget-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '-' + uuid4().hex[:6] + '.zip'
+        target = directory / name
+        fd, temporary = tempfile.mkstemp(dir=directory, prefix='.backup-')
+        os.close(fd)
+        try:
+            with zipfile.ZipFile(temporary, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+                for store_name in ['transactions', 'categories', 'budgets', 'recurring']:
+                    path = self.store.directory / (store_name + '.jsonl')
+                    archive.write(path, arcname=path.name)
+            os.replace(temporary, target)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        return target
+
+    def add_recurring(self, day: int, **fields) -> str:
+        if not 1 <= day <= 31:
+            raise ValueError('반복일은 1~31을 사용하세요')
+        identifier = 'RULE-' + uuid4().hex[:12]
+        template = Transaction(id=identifier, date='2000-01-01', **fields)
+        template.validate(self.categories())
+        records = list(self.store.rows('recurring'))
+        if any(r['id'] == identifier for r in records):
+            raise ValueError('반복 규칙 id 중복입니다. 다시 등록하세요')
+        record = template.record()
+        record.pop('date')
+        record['day'] = day
+        records.append(record)
+        self.store.replace('recurring', records)
+        return identifier
+
+    def generate_recurring(self, month: str) -> int:
+        valid_month(month)
+        year, number = map(int, month.split('-'))
+        existing = list(self.transactions.stream())
+        ids = {t.id for t in existing}
+        new = []
+        for record in self.store.rows('recurring'):
+            identifier = 'TX-R-' + record['id'].removeprefix('RULE-') + '-' + month.replace('-', '')
+            if not 1 <= record['day'] <= 31:
+                raise ValueError('반복 규칙의 날짜를 확인하세요')
+            day = min(record['day'], calendar.monthrange(year, number)[1])
+            fields = {key: value for key, value in record.items() if key not in ('id', 'day')}
+            transaction = Transaction(id=identifier, date=f'{month}-{day:02}', **fields)
+            transaction.validate(self.categories())
+            if identifier not in ids:
+                new.append(transaction)
+                ids.add(identifier)
+        combined = existing + new
+        combined.sort(key=lambda t: (t.date, t.id), reverse=True)
+        self.store.replace('transactions', (t.record() for t in combined))
+        return len(new)

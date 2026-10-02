@@ -5,6 +5,7 @@ from pathlib import Path
 from .models import positive
 from .repository import Store
 from .service import BudgetService
+from .formatting import header, row
 
 
 def errors(function):
@@ -69,13 +70,24 @@ def parser() -> argparse.ArgumentParser:
     exporter.add_argument('--month')
     exporter.add_argument('--from', dest='start')
     exporter.add_argument('--to', dest='end')
+    backup = commands.add_parser('backup')
+    backup.add_argument('--out-dir', type=Path, default=Path('backups'))
+    recurring = commands.add_parser('recurring').add_subparsers(dest='operation', required=True)
+    recurring.add_parser('add')
+    recurring.add_parser('list')
+    generation = recurring.add_parser('generate')
+    generation.add_argument('--month', required=True)
     return p
 
 
 def display(records) -> None:
     seen = False
     for t in records:
-        print(f'{t.id} | {t.date} | {t.type} | {t.category} | {t.amount} | {t.memo} | {",".join(t.tags or [])}')
+        if not seen:
+            title = header()
+            print(title)
+            print('-' * len(title))
+        print(row(t))
         seen = True
     if not seen:
         print('데이터 없음')
@@ -124,6 +136,21 @@ def execute(a) -> None:
                 raise ValueError('--month 또는 --from/--to 중 한 가지 조건을 지정하세요')
             n = service.export_csv(a.out, month=a.month, start=a.start, end=a.end)
             print(f'[완료] {a.out} ({n} records)')
+        elif a.command == 'backup':
+            print('[백업 완료] ' + str(service.backup(a.out_dir)))
+        elif a.command == 'recurring':
+            if a.operation == 'generate':
+                print(f'[완료] {a.month} generated={service.generate_recurring(a.month)}')
+            elif a.operation == 'list':
+                records = list(store.rows('recurring'))
+                for r in records:
+                    print(f'{r["id"]} | 매월 {r["day"]}일 | {r["type"]} | {r["category"]} | {r["amount"]}')
+                if not records:
+                    print('반복 규칙 없음')
+            else:
+                fields = dict(type=input('타입(income/expense): ').strip(), category=input('카테고리: ').strip(), amount=positive(input('금액(양수): ')), memo=input('메모(선택): '), tags=[t.strip() for t in input('태그(쉼표로 구분): ').split(',') if t.strip()])
+                day = int(input('매월 날짜(1~31): '))
+                print('[저장 완료] id=' + service.add_recurring(day, **fields))
 
 
 def main() -> int:

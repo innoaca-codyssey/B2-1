@@ -170,3 +170,29 @@ python3 -m budget_app --data-dir ./data export --out export.csv --from 2026-09-0
 python3 -m budget_app --data-dir ./data import --from import.csv
 python3 -m unittest discover -s tests -v
 ```
+
+## 백업과 반복 내역 검증
+
+```bash
+$ python3 -m unittest discover -s tests -v
+test_all_help_commands (test_budget.BudgetTests.test_all_help_commands) ... ok
+test_bad_import_rolls_back_all_rows (test_budget.BudgetTests.test_bad_import_rolls_back_all_rows) ... ok
+test_csv_roundtrip_and_empty_month (test_budget.BudgetTests.test_csv_roundtrip_and_empty_month) ... ok
+test_failed_replace_preserves_original_and_removes_temp (test_budget.BudgetTests.test_failed_replace_preserves_original_and_removes_temp) ... ok
+test_invalid_cli_and_corrupt_file_have_nonzero_exit (test_budget.BudgetTests.test_invalid_cli_and_corrupt_file_have_nonzero_exit) ... ok
+test_invalid_inputs (test_budget.BudgetTests.test_invalid_inputs) ... ok
+test_latest_order_after_date_edit_and_delete (test_budget.BudgetTests.test_latest_order_after_date_edit_and_delete) ... ok
+test_reopen_budget_search_and_category_use (test_budget.BudgetTests.test_reopen_budget_search_and_category_use) ... ok
+test_backup_roundtrip_and_unique_names (testbonus.BonusTests.test_backup_roundtrip_and_unique_names) ... ok
+test_bad_rule_rolls_back_all_generation (testbonus.BonusTests.test_bad_rule_rolls_back_all_generation) ... ok
+test_category_rule_reference_and_invalid_day (testbonus.BonusTests.test_category_rule_reference_and_invalid_day) ... ok
+test_month_end_leap_and_idempotence (testbonus.BonusTests.test_month_end_leap_and_idempotence) ... ok
+test_table_unicode_alignment_and_stream (testbonus.BonusTests.test_table_unicode_alignment_and_stream) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.835s
+
+OK
+```
+
+백업의 네 저장 파일이 원본과 같은지, 같은 달 재생성의 중복 방지, 윤년/말일 처리와 전체 생성 실패 시 원본 보존을 검사했습니다. 테이블은 한글 폭과 줄바꿈을 고려하고 거래를 순회하면서 출력합니다.
